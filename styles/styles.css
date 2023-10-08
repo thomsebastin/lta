@@ -509,3 +509,13 @@ main .form .button:hover {
   border-color: var(--spectrum-blue);
   transform: translateZ(0);
 }
+
+.score-loader {
+  display: flex;
+  justify-content: center;
+  margin: 14px 0;
+}
+
+.score-loader.hide {
+  display: none;
+}
