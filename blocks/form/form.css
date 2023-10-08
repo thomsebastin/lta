@@ -115,6 +115,29 @@ main .form button {
   font-family: var(--body-font-family);
 }
 
+main .score-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  max-width: 1200px;
+  margin: auto;
+  gap: 20px;
+  font-size: 16px;
+  filter: var(--image-filter-drop-shadow-small);
+}
+
+main .score-el {
+  border: solid 1px var(--bg-color-grey);
+  background-color: white;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+}
+
+main .score-el .score:first-child {
+  color: forestgreen;
+  margin-bottom: 12px;
+}
+
 @media screen and (min-width: 900px) {
   main .form {
     padding: var(--spacing-ml);

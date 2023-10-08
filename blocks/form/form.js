@@ -1,4 +1,5 @@
 import { addInViewAnimationToSingleElement } from '../../utils/helpers.js';
+import xml2json from '../../utils/xml2json.js';
 
 function createSelect(fd) {
   const select = document.createElement('select');
@@ -34,19 +35,108 @@ function constructPayload(form) {
   return payload;
 }
 
+function parseXml(xml) {
+  let dom = null;
+
+  if (window.DOMParser) {
+    try {
+      dom = new DOMParser().parseFromString(xml, 'text/xml');
+    } catch (e) {
+      dom = null;
+    }
+  } else {
+    throw new Error('Cannot parse xml string!');
+  }
+
+  return dom;
+}
+
+// AIzaSyC1ay5Vr4QzEGUSTbA5re9Nux-Kza-z7OQ
+async function fetchPageSpeedScore(url) {
+  const apiKey = 'AIzaSyC1ay5Vr4QzEGUSTbA5re9Nux-Kza-z7OQ'; // Replace with your PageSpeed Insights API key
+  const urlToTest = url || 'https://www.palladiumhotelgroup.com/es';
+  const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${urlToTest}&key=${apiKey}&category=performance&category=accessibility&category=seo&category=best-practices`;
+
+  try {
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching PageSpeed data:', error);
+    return error;
+  }
+}
+
+function decorateScore(scores, el) {
+  const scoreEl = document.createElement('div');
+  scoreEl.classList.add('score-el');
+
+  // eslint-disable-next-line no-restricted-syntax
+  for (const [key, value] of Object.entries(scores)) {
+    const scoreDiv = document.createElement('div');
+    scoreDiv.classList.add('score');
+    scoreDiv.innerHTML = `<span class='score-key'>${key}:</span> <span class='score-val'>${value}</span>`;
+    scoreEl.append(scoreDiv);
+  }
+
+  el.append(scoreEl);
+}
+
+function renderScores(items) {
+  const main = document.querySelector('main');
+  const scoreContainer = document.createElement('div');
+  scoreContainer.classList.add('score-container');
+  main.append(scoreContainer);
+
+  items.forEach((item) => {
+    if (!Object.prototype.hasOwnProperty.call(item.value, 'error')) {
+      const data = item.value;
+      const scores = {
+        Url: data.id,
+        Performance: data.lighthouseResult.categories.performance.score * 100,
+        Accessibility: data.lighthouseResult.categories.accessibility.score * 100,
+        BestPractices: data.lighthouseResult.categories['best-practices'].score * 100,
+        SEO: data.lighthouseResult.categories.seo.score * 100,
+      };
+      decorateScore(scores, scoreContainer);
+    }
+  });
+}
+
+function initLoader() {
+  const mainEl = document.querySelector('main');
+  const loaderEl = document.createElement('div');
+  loaderEl.innerText = 'Fetching pagespeed results...';
+  loaderEl.classList.add('score-loader');
+  mainEl.append(loaderEl);
+}
+
+function hideLoader() {
+  const loaderEl = document.querySelector('.score-loader');
+  if (loaderEl) loaderEl.classList.add('hide');
+}
+
 async function submitForm(form) {
   const payload = constructPayload(form);
   payload.timestamp = new Date().toJSON();
-  const resp = await fetch(form.dataset.action, {
-    method: 'POST',
-    cache: 'no-cache',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ data: payload }),
+  // my code starts here. Refactor once functionality is done
+  const resp = await fetch('../utils/sitemap.xml'); // await fetch(payload.sourceUrl);
+  const res = await resp.text();
+  const dom = parseXml(res);
+  const json = xml2json(dom, '');
+  const nodes = JSON.parse(json).urlset.url;
+  initLoader();
+  Promise.allSettled(
+    nodes.map((node) => fetchPageSpeedScore(node.loc)),
+  ).then((results) => {
+    hideLoader();
+    console.log(results);
+    const items = results;
+    // const obj = {};
+    renderScores(items);
   });
-  await resp.text();
-  return payload;
+  // console.log(await fetchPageSpeedScore());
+  // return payload;
 }
 
 function createButton(fd) {
@@ -61,8 +151,8 @@ function createButton(fd) {
         event.preventDefault();
         button.setAttribute('disabled', '');
         await submitForm(form);
-        const redirectTo = fd.Extra;
-        window.location.href = redirectTo;
+        // const redirectTo = fd.Extra;
+        // window.location.href = redirectTo;
       }
     });
   }
