@@ -152,8 +152,6 @@ function createButton(fd) {
         event.preventDefault();
         button.setAttribute('disabled', '');
         await submitForm(form);
-        // const redirectTo = fd.Extra;
-        // window.location.href = redirectTo;
       }
     });
   }
