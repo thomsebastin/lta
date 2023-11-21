@@ -82,31 +82,29 @@ function decorateScore(scores, el) {
   el.append(scoreEl);
 }
 
-function renderScores(items) {
+function renderScores(res) {
   const main = document.querySelector('main');
   const scoreContainer = document.createElement('div');
   scoreContainer.classList.add('score-container');
   main.append(scoreContainer);
 
-  items.forEach((item) => {
-    if (!Object.prototype.hasOwnProperty.call(item.value, 'error')) {
-      const data = item.value;
-      const scores = {
-        Url: data.id,
-        Performance: data.lighthouseResult.categories.performance.score * 100,
-        Accessibility: data.lighthouseResult.categories.accessibility.score * 100,
-        BestPractices: data.lighthouseResult.categories['best-practices'].score * 100,
-        SEO: data.lighthouseResult.categories.seo.score * 100,
-      };
-      decorateScore(scores, scoreContainer);
-    }
-  });
+  if (!Object.prototype.hasOwnProperty.call(res, 'error')) {
+    const data = res;
+    const scores = {
+      Url: data.id,
+      Performance: data.lighthouseResult.categories.performance.score * 100,
+      Accessibility: data.lighthouseResult.categories.accessibility.score * 100,
+      BestPractices: data.lighthouseResult.categories['best-practices'].score * 100,
+      SEO: data.lighthouseResult.categories.seo.score * 100,
+    };
+    decorateScore(scores, scoreContainer);
+  }
 }
 
-function initLoader() {
+function initLoader(total) {
   const mainEl = document.querySelector('main');
   const loaderEl = document.createElement('div');
-  loaderEl.innerText = 'Fetching pagespeed results...';
+  loaderEl.innerText = `Fetching pagespeed results...0/${total}`;
   loaderEl.classList.add('score-loader');
   mainEl.append(loaderEl);
 }
@@ -116,27 +114,30 @@ function hideLoader() {
   if (loaderEl) loaderEl.classList.add('hide');
 }
 
+function updateLoader(done, total) {
+  const loaderEl = document.querySelector('.score-loader');
+  loaderEl.innerText = `Fetching pagespeed results...${done}/${total}`;
+}
+
 async function submitForm(form) {
   const payload = constructPayload(form);
   payload.timestamp = new Date().toJSON();
   // my code starts here. Refactor once functionality is done
-  const resp = await fetch('../utils/sitemap.xml'); // await fetch(payload.sourceUrl);
+  const resp = await fetch('../utils/sitemap.xml');
   const res = await resp.text();
   const dom = parseXml(res);
   const json = xml2json(dom, '');
   const nodes = JSON.parse(json).urlset.url;
-  initLoader();
-  Promise.allSettled(
-    nodes.map((node) => fetchPageSpeedScore(node.loc)),
-  ).then((results) => {
+  initLoader(nodes.length);
+  let done = 0;
+
+  Promise.all(nodes.map(async ({ loc }) => {
+    const result = await fetchPageSpeedScore(loc);
+    updateLoader(done += 1, nodes.length);
+    renderScores(result);
+  })).then(() => {
     hideLoader();
-    console.log(results);
-    const items = results;
-    // const obj = {};
-    renderScores(items);
   });
-  // console.log(await fetchPageSpeedScore());
-  // return payload;
 }
 
 function createButton(fd) {
